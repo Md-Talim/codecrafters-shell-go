@@ -26,6 +26,9 @@ func main() {
 		switch command {
 		case "exit":
 			os.Exit(0)
+		case "echo":
+			output := strings.Join(arguments, " ")
+			fmt.Println(output)
 		default: // Command not found
 			fmt.Printf("%s: command not found\n", command)
 		}
