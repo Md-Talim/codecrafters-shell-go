@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/md-talim/codecrafters-shell-go/app/parser"
@@ -42,6 +43,19 @@ func main() {
 	}
 }
 
+func findPath(command string) (string, error) {
+	PATH := os.Getenv("PATH")
+	directories := strings.SplitSeq(PATH, string(os.PathListSeparator))
+
+	for dir := range directories {
+		fullPath := path.Join(dir, command)
+		if fileInfo, err := os.Stat(fullPath); err == nil && fileInfo.Mode().IsRegular() && (fileInfo.Mode().Perm()&0111 != 0) {
+			return fullPath, nil
+		}
+	}
+	return "", fmt.Errorf("%s: not found", command)
+}
+
 func handleTypeCommand(args []string) {
 	if len(args) < 1 {
 		fmt.Println("type: missing operand")
@@ -53,7 +67,11 @@ func handleTypeCommand(args []string) {
 		case "exit", "echo", "type":
 			fmt.Printf("%s is a shell builtin\n", arg)
 		default:
-			fmt.Printf("%s: not found\n", arg)
+			if path, err := findPath(arg); err == nil {
+				fmt.Printf("%s is %s\n", arg, path)
+			} else {
+				fmt.Println(err)
+			}
 		}
 	}
 }
