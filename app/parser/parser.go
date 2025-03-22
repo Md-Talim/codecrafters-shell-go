@@ -52,6 +52,8 @@ func (p *Parser) nextArgument() *string {
 				result := builder.String()
 				return &result
 			}
+		case BACKSLASH:
+			p.handleBackshalsh(&builder)
 		case SINGLE:
 			for {
 				character = p.next()
@@ -79,6 +81,14 @@ func (p *Parser) nextArgument() *string {
 	}
 
 	return nil
+}
+
+func (p *Parser) handleBackshalsh(builder *strings.Builder) {
+	character := p.next()
+	if character == END {
+		return
+	}
+	builder.WriteByte(character)
 }
 
 func (p *Parser) next() byte {
