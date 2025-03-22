@@ -49,6 +49,14 @@ func pwdCommand(_ []string) {
 	fmt.Println(dir)
 }
 
+func cdCommand(args []string) {
+	newDir := args[0]
+
+	if err := os.Chdir(newDir); err != nil {
+		fmt.Printf("cd: %s: No such file or directory\n", newDir)
+	}
+}
+
 func externelCommand(command string, args []string) {
 	cmd := exec.Command(command, args...)
 

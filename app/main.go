@@ -14,6 +14,7 @@ func main() {
 	builtinCommands["echo"] = echoCommand
 	builtinCommands["type"] = typeCommand
 	builtinCommands["pwd"] = pwdCommand
+	builtinCommands["cd"] = cdCommand
 
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
