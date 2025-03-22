@@ -1,6 +1,8 @@
 package parser
 
-import "strings"
+import (
+	"strings"
+)
 
 const (
 	END       = '\x00' // Null character
@@ -53,7 +55,7 @@ func (p *Parser) nextArgument() *string {
 				return &result
 			}
 		case BACKSLASH:
-			p.handleBackshalsh(&builder)
+			p.handleBackshalsh(&builder, false)
 		case SINGLE:
 			for {
 				character = p.next()
@@ -68,7 +70,11 @@ func (p *Parser) nextArgument() *string {
 				if character == END || character == DOUBLE {
 					break
 				}
-				builder.WriteByte(character)
+				if character == BACKSLASH {
+					p.handleBackshalsh(&builder, true)
+				} else {
+					builder.WriteByte(character)
+				}
 			}
 		default:
 			builder.WriteByte(character)
@@ -83,10 +89,25 @@ func (p *Parser) nextArgument() *string {
 	return nil
 }
 
-func (p *Parser) handleBackshalsh(builder *strings.Builder) {
+func mapBackshlash(character byte) byte {
+	if character == DOUBLE || character == BACKSLASH {
+		return character
+	}
+	return END
+}
+
+func (p *Parser) handleBackshalsh(builder *strings.Builder, inQuotes bool) {
 	character := p.next()
 	if character == END {
 		return
+	}
+	if inQuotes {
+		mapped := mapBackshlash(character)
+		if mapped != END {
+			character = mapped
+		} else {
+			builder.WriteByte(BACKSLASH)
+		}
 	}
 	builder.WriteByte(character)
 }
