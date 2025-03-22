@@ -38,6 +38,8 @@ func main() {
 			fmt.Println(output)
 		case "type":
 			handleTypeCommand(arguments)
+		case "pwd":
+			handlePwdCommad()
 		default:
 			if _, err := findPath(command); err == nil {
 				handleExternelCommand(command, arguments)
@@ -81,7 +83,7 @@ func handleTypeCommand(args []string) {
 
 	for _, arg := range args {
 		switch arg {
-		case "exit", "echo", "type":
+		case "exit", "echo", "type", "pwd":
 			fmt.Printf("%s is a shell builtin\n", arg)
 		default:
 			if path, err := findPath(arg); err == nil {
@@ -91,4 +93,12 @@ func handleTypeCommand(args []string) {
 			}
 		}
 	}
+}
+
+func handlePwdCommad() {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+	fmt.Println(dir)
 }
