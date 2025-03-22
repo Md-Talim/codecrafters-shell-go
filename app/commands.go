@@ -52,6 +52,15 @@ func pwdCommand(_ []string) {
 func cdCommand(args []string) {
 	newDir := args[0]
 
+	if strings.HasPrefix(newDir, "~") {
+		HOME := os.Getenv("HOME")
+		if (len(HOME)) == 0 {
+			fmt.Println("cd: $HOME is not set.")
+		} else {
+			newDir = path.Join(HOME, newDir[1:])
+		}
+	}
+
 	if err := os.Chdir(newDir); err != nil {
 		fmt.Printf("cd: %s: No such file or directory\n", newDir)
 	}
