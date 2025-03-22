@@ -60,6 +60,14 @@ func (p *Parser) nextArgument() *string {
 				}
 				builder.WriteByte(character)
 			}
+		case DOUBLE:
+			for {
+				character = p.next()
+				if character == END || character == DOUBLE {
+					break
+				}
+				builder.WriteByte(character)
+			}
 		default:
 			builder.WriteByte(character)
 		}
