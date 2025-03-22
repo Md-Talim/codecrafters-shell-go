@@ -52,6 +52,14 @@ func (p *Parser) nextArgument() *string {
 				result := builder.String()
 				return &result
 			}
+		case SINGLE:
+			for {
+				character = p.next()
+				if character == END || character == SINGLE {
+					break
+				}
+				builder.WriteByte(character)
+			}
 		default:
 			builder.WriteByte(character)
 		}
