@@ -57,14 +57,14 @@ func cdCommand(args []string, io shellio.IO) {
 	if strings.HasPrefix(newDir, "~") {
 		HOME := os.Getenv("HOME")
 		if (len(HOME)) == 0 {
-			fmt.Fprintln(io.OutputFile(), "cd: $HOME is not set.")
+			fmt.Fprintln(io.ErrorFile(), "cd: $HOME is not set.")
 		} else {
 			newDir = path.Join(HOME, newDir[1:])
 		}
 	}
 
 	if err := os.Chdir(newDir); err != nil {
-		fmt.Fprintf(io.OutputFile(), "cd: %s: No such file or directory\n", newDir)
+		fmt.Fprintf(io.ErrorFile(), "cd: %s: No such file or directory\n", newDir)
 	}
 }
 
@@ -72,7 +72,7 @@ func externelCommand(command string, args []string, io shellio.IO) {
 	cmd := exec.Command(command, args...)
 
 	cmd.Stdout = io.OutputFile()
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = io.ErrorFile()
 
 	cmd.Run()
 }

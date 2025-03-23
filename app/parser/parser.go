@@ -36,14 +36,18 @@ func (p *Parser) Parse() ([]string, shellio.RedirectionConfig) {
 		if argument == nil {
 			break
 		}
-		if (*argument == ">") || (*argument == "1>") {
+		if isRedirectionOperator(*argument) {
 			file := p.nextArgument()
 			if file == nil {
 				log.Fatalln("Expect file name after >")
 				break
 			}
 
-			redirection = shellio.RedirectionConfig{File: *file, Descriptor: 1}
+			if strings.HasPrefix(*argument, "2") {
+				redirection = shellio.RedirectionConfig{File: *file, Descriptor: 2}
+			} else {
+				redirection = shellio.RedirectionConfig{File: *file, Descriptor: 1}
+			}
 			break
 		}
 		arguments = append(arguments, *argument)
@@ -100,13 +104,6 @@ func (p *Parser) nextArgument() *string {
 	}
 
 	return nil
-}
-
-func mapBackshlash(character byte) byte {
-	if character == DOUBLE || character == BACKSLASH {
-		return character
-	}
-	return END
 }
 
 func (p *Parser) handleBackshalsh(builder *strings.Builder, inQuotes bool) {

@@ -12,11 +12,13 @@ type RedirectionConfig struct {
 
 type IO interface {
 	OutputFile() *os.File
+	ErrorFile() *os.File
 	Close()
 }
 
 type FileRedirect struct {
 	Output *os.File
+	Error  *os.File
 }
 
 func (io *FileRedirect) OutputFile() *os.File {
@@ -27,10 +29,22 @@ func (io *FileRedirect) OutputFile() *os.File {
 	}
 }
 
+func (io *FileRedirect) ErrorFile() *os.File {
+	if io.Error != nil {
+		return io.Error
+	} else {
+		return os.Stderr
+	}
+}
+
 func (io *FileRedirect) Close() {
 	if io.Output != nil {
 		io.Output.Close()
 		io.Output = nil
+	}
+	if io.Error != nil {
+		io.Error.Close()
+		io.Error = nil
 	}
 }
 
@@ -46,5 +60,9 @@ func OpenIo(redirect RedirectionConfig) (IO, bool) {
 		return &FileRedirect{}, false
 	}
 
-	return &FileRedirect{Output: file}, true
+	if redirect.Descriptor == 1 {
+		return &FileRedirect{Output: file, Error: nil}, true
+	} else {
+		return &FileRedirect{Output: nil, Error: file}, true
+	}
 }
