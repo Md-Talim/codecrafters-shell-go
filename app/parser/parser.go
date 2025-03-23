@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"log"
 	"strings"
+
+	"github.com/md-talim/codecrafters-shell-go/app/shellio"
 )
 
 const (
@@ -24,19 +27,29 @@ func NewParser(input string) Parser {
 	}
 }
 
-func (p *Parser) Parse() []string {
+func (p *Parser) Parse() ([]string, shellio.RedirectionConfig) {
 	var arguments []string
+	var redirection shellio.RedirectionConfig
 
 	for {
 		argument := p.nextArgument()
 		if argument == nil {
 			break
 		}
+		if (*argument == ">") || (*argument == "1>") {
+			file := p.nextArgument()
+			if file == nil {
+				log.Fatalln("Expect file name after >")
+				break
+			}
 
+			redirection = shellio.RedirectionConfig{File: *file, Descriptor: 1}
+			break
+		}
 		arguments = append(arguments, *argument)
 	}
 
-	return arguments
+	return arguments, redirection
 }
 
 func (p *Parser) nextArgument() *string {

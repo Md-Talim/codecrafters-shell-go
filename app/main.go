@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/md-talim/codecrafters-shell-go/app/parser"
+	"github.com/md-talim/codecrafters-shell-go/app/shellio"
 )
 
 func main() {
@@ -27,20 +28,25 @@ func main() {
 
 		input = input[:len(input)-1] // Remove the '\n' at the end
 		parser := parser.NewParser(input)
-		arguments := parser.Parse()
+		arguments, redirection := parser.Parse()
 		if len(arguments) <= 0 {
 			continue
+		}
+
+		shellio, ok := shellio.OpenIo(redirection)
+		if ok {
+			defer shellio.Close()
 		}
 
 		command := arguments[0]
 		arguments = arguments[1:]
 
 		if builtinCommand, ok := builtinCommands[command]; ok {
-			builtinCommand(arguments)
+			builtinCommand(arguments, shellio)
 		} else if _, ok := findPath(command); ok {
-			externelCommand(command, arguments)
+			externelCommand(command, arguments, shellio)
 		} else {
-			fmt.Printf("%s: command not found\n", command)
+			fmt.Fprintf(shellio.OutputFile(), "%s: command not found\n", command)
 		}
 	}
 }
