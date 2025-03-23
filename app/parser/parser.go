@@ -43,11 +43,7 @@ func (p *Parser) Parse() ([]string, shellio.RedirectionConfig) {
 				break
 			}
 
-			if strings.HasPrefix(*argument, "2") {
-				redirection = shellio.RedirectionConfig{File: *file, Descriptor: 2}
-			} else {
-				redirection = shellio.RedirectionConfig{File: *file, Descriptor: 1}
-			}
+			redirection = getRedirectionConfig(*argument, *file)
 			break
 		}
 		arguments = append(arguments, *argument)

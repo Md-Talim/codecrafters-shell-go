@@ -8,6 +8,7 @@ import (
 type RedirectionConfig struct {
 	File       string
 	Descriptor int
+	Append     bool
 }
 
 type IO interface {
@@ -53,7 +54,13 @@ func OpenIo(redirect RedirectionConfig) (IO, bool) {
 		return &FileRedirect{}, false
 	}
 
-	flag := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	flag := os.O_CREATE | os.O_WRONLY
+	if redirect.Append {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+	}
+
 	file, err := os.OpenFile(redirect.File, flag, 0664)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "shell: %s: %s\n", redirect.File, err.Error())
