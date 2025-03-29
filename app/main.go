@@ -67,7 +67,7 @@ func read() (string, ReadResult) {
 			result := autocomplete(&line)
 			switch result {
 			case AutoCompleteNone:
-				break
+				bell()
 			case AutoCompleteFound:
 				break
 			case AutoCompleteMore:

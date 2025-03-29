@@ -43,3 +43,7 @@ func autocomplete(line *string) AutoCompleteResult {
 
 	return AutoCompleteNone
 }
+
+func bell() {
+	os.Stdout.Write([]byte{'\a'})
+}
