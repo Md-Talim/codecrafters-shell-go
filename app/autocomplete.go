@@ -22,7 +22,7 @@ func printCompletion(line *string, completion string) {
 	*line += " "
 }
 
-func autocomplete(line *string) AutoCompleteResult {
+func autocomplete(line *string, bellRang bool) AutoCompleteResult {
 	var completions []string
 
 	for name := range builtinCommands {
@@ -70,7 +70,34 @@ func autocomplete(line *string) AutoCompleteResult {
 		return AutoCompleteNone
 	}
 
-	return AutoCompleteNone
+	if bellRang {
+		slices.SortFunc(completions, func(left string, right string) int {
+			leftLength := len(left)
+			rightLength := len(right)
+
+			if leftLength != rightLength {
+				return leftLength - rightLength
+			}
+
+			return strings.Compare(left, right)
+		})
+
+		os.Stdout.WriteString("\n")
+
+		for index, completion := range completions {
+			if index != 0 {
+				os.Stdout.WriteString("  ")
+			}
+			os.Stdout.WriteString(*line)
+			os.Stdout.WriteString(completion)
+		}
+
+		os.Stdout.WriteString("\n")
+		prompt()
+		os.Stdout.WriteString(*line)
+	}
+
+	return AutoCompleteMore
 }
 
 func bell() {

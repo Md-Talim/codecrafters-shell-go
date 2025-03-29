@@ -19,8 +19,12 @@ const (
 	ReadResultContent
 )
 
-func read() (string, ReadResult) {
+func prompt() {
 	os.Stdout.Write([]byte{'$', ' '})
+}
+
+func read() (string, ReadResult) {
+	prompt()
 
 	var stdinFd = os.Stdin.Fd()
 	var previous unix.Termios
@@ -40,6 +44,7 @@ func read() (string, ReadResult) {
 	defer termios.Tcsetattr(stdinFd, termios.TCSANOW, &previous)
 
 	line := ""
+	bellRang := false
 	buffer := make([]byte, 1)
 
 	for {
@@ -63,15 +68,17 @@ func read() (string, ReadResult) {
 				return line, ReadResultContent
 			}
 
-		case '\t':
-			result := autocomplete(&line)
+		case '\t': // TAB
+			result := autocomplete(&line, bellRang)
 			switch result {
 			case AutoCompleteNone:
+				bellRang = false
 				bell()
 			case AutoCompleteFound:
-				break
+				bellRang = false
 			case AutoCompleteMore:
-				break
+				bellRang = true
+				bell()
 			}
 
 		case 0x1b: // ARROW KEYS
