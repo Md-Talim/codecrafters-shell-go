@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/md-talim/codecrafters-shell-go/app/parser"
 	"github.com/md-talim/codecrafters-shell-go/app/shellio"
@@ -10,6 +11,45 @@ import (
 	"github.com/pkg/term/termios"
 	"golang.org/x/sys/unix"
 )
+
+type AutoCompleteResult int
+
+const (
+	AutoCompleteNone AutoCompleteResult = iota
+	AutoCompleteFound
+	AutoCompleteMore
+)
+
+func printCompletion(line *string, completion string) {
+	os.Stdout.WriteString(completion)
+	*line += completion
+
+	os.Stdout.WriteString(" ")
+	*line += " "
+}
+
+func autocomplete(line *string) AutoCompleteResult {
+	var completions []string
+
+	for name := range builtinCommands {
+		if strings.HasPrefix(name, *line) {
+			completion := name[len(*line):]
+			completions = append(completions, completion)
+		}
+	}
+
+	if len(completions) == 0 {
+		return AutoCompleteNone
+	}
+
+	if len(completions) == 1 {
+		completion := completions[0]
+		printCompletion(line, completion)
+		return AutoCompleteNone
+	}
+
+	return AutoCompleteNone
+}
 
 type ReadResult int
 
@@ -61,6 +101,17 @@ func read() (string, ReadResult) {
 				return "", ReadResultEmpty
 			} else {
 				return line, ReadResultContent
+			}
+
+		case '\t':
+			result := autocomplete(&line)
+			switch result {
+			case AutoCompleteNone:
+				break
+			case AutoCompleteFound:
+				break
+			case AutoCompleteMore:
+				break
 			}
 
 		case 0x1b: // ARROW KEYS
