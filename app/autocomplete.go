@@ -14,12 +14,47 @@ const (
 	AutoCompleteMore
 )
 
-func printCompletion(line *string, completion string) {
+func printCompletion(line *string, completion string, hasMore bool) {
 	os.Stdout.WriteString(completion)
 	*line += completion
 
-	os.Stdout.WriteString(" ")
-	*line += " "
+	if !hasMore {
+		os.Stdout.WriteString(" ")
+		*line += " "
+	}
+}
+
+func findSharedPrefix(completions []string) string {
+	first := completions[0]
+	completions = completions[1:]
+
+	firstLength := len(first)
+	if firstLength == 0 {
+		return ""
+	}
+
+	end := 1
+	for ; end < firstLength; end += 1 {
+		oneIsNotMatching := false
+
+		for index, completion := range completions {
+			if index == 0 {
+				continue
+			}
+
+			if first[:end] != completion[:end] {
+				oneIsNotMatching = true
+				break
+			}
+		}
+
+		if oneIsNotMatching {
+			end -= 1
+			break
+		}
+	}
+
+	return first[:end]
 }
 
 func autocomplete(line *string, bellRang bool) AutoCompleteResult {
@@ -66,22 +101,28 @@ func autocomplete(line *string, bellRang bool) AutoCompleteResult {
 
 	if len(completions) == 1 {
 		completion := completions[0]
-		printCompletion(line, completion)
-		return AutoCompleteNone
+		printCompletion(line, completion, false)
+		return AutoCompleteFound
+	}
+
+	slices.SortFunc(completions, func(left string, right string) int {
+		leftLength := len(left)
+		rightLength := len(right)
+
+		if leftLength != rightLength {
+			return leftLength - rightLength
+		}
+
+		return strings.Compare(left, right)
+	})
+
+	prefix := findSharedPrefix(completions)
+	if len(prefix) != 0 {
+		printCompletion(line, prefix, true)
+		return AutoCompleteFound
 	}
 
 	if bellRang {
-		slices.SortFunc(completions, func(left string, right string) int {
-			leftLength := len(left)
-			rightLength := len(right)
-
-			if leftLength != rightLength {
-				return leftLength - rightLength
-			}
-
-			return strings.Compare(left, right)
-		})
-
 		os.Stdout.WriteString("\n")
 
 		for index, completion := range completions {
