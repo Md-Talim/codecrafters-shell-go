@@ -27,29 +27,59 @@ func NewParser(input string) Parser {
 	}
 }
 
-func (p *Parser) Parse() ([]string, shellio.RedirectionConfig) {
-	var arguments []string
-	var redirection shellio.RedirectionConfig
+func (p *Parser) Parse() ([][]string, shellio.RedirectionConfig) {
+	var (
+		allCommands        [][]string
+		currentCommandArgs []string
+		redirection        shellio.RedirectionConfig
+	)
 
 	for {
 		argument := p.nextArgument()
 		if argument == nil {
+			if len(currentCommandArgs) > 0 {
+				allCommands = append(allCommands, currentCommandArgs)
+			}
 			break
 		}
-		if isRedirectionOperator(*argument) {
-			file := p.nextArgument()
-			if file == nil {
-				log.Fatalln("Expect file name after >")
-				break
+
+		token := *argument
+
+		if token == "|" {
+			if len(currentCommandArgs) == 0 {
+				return nil, shellio.RedirectionConfig{}
+			}
+			allCommands = append(allCommands, currentCommandArgs)
+			currentCommandArgs = []string{} // Reset for the next command
+		} else if isRedirectionOperator(*argument) {
+			// Redirection applies to the ouput of the last command in the pipeline.
+			// Expect this at the end of the command line.
+			if len(allCommands) == 0 && len(currentCommandArgs) == 0 {
+				return nil, shellio.RedirectionConfig{}
+			}
+			// Add pending arguments for the current (which will be the last) command.
+			if len(currentCommandArgs) > 0 {
+				allCommands = append(allCommands, currentCommandArgs)
+				currentCommandArgs = []string{}
+			}
+			// If currentCommandArgs is empt here, but allCommands is not, it implies "cmd1 | > out".
+			// This is a syntax error (missing command after pipe before redirection).
+			if len(allCommands) > 0 && len(allCommands[len(allCommands)-1]) == 0 {
+				return nil, shellio.RedirectionConfig{}
 			}
 
-			redirection = getRedirectionConfig(*argument, *file)
+			fileName := p.nextArgument()
+			if fileName == nil {
+				log.Fatalln("Expect file name after >")
+				return nil, shellio.RedirectionConfig{}
+			}
+			redirection = getRedirectionConfig(token, *fileName)
 			break
+		} else {
+			currentCommandArgs = append(currentCommandArgs, token)
 		}
-		arguments = append(arguments, *argument)
 	}
-
-	return arguments, redirection
+	return allCommands, redirection
 }
 
 func (p *Parser) nextArgument() *string {
