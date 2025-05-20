@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 
@@ -66,26 +65,4 @@ func cdCommand(args []string, io shellio.IO) {
 	if err := os.Chdir(newDir); err != nil {
 		fmt.Fprintf(io.ErrorFile(), "cd: %s: No such file or directory\n", newDir)
 	}
-}
-
-func externelCommand(command string, args []string, io shellio.IO) {
-	cmd := exec.Command(command, args...)
-
-	cmd.Stdout = io.OutputFile()
-	cmd.Stderr = io.ErrorFile()
-
-	cmd.Run()
-}
-
-func findPath(command string) (string, bool) {
-	PATH := os.Getenv("PATH")
-	directories := strings.SplitSeq(PATH, string(os.PathListSeparator))
-
-	for dir := range directories {
-		fullPath := path.Join(dir, command)
-		if fileInfo, err := os.Stat(fullPath); err == nil && fileInfo.Mode().IsRegular() && (fileInfo.Mode().Perm()&0111 != 0) {
-			return fullPath, true
-		}
-	}
-	return "", false
 }
