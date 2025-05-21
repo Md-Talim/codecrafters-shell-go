@@ -9,9 +9,9 @@ import (
 	"github.com/md-talim/codecrafters-shell-go/app/shellio"
 )
 
-type BuiltinCommand func([]string, shellio.IO)
+type BuiltinCommandExecutor func([]string, shellio.IO)
 
-var builtinCommands map[string]BuiltinCommand
+var builtinCommands map[string]BuiltinCommandExecutor
 
 func exitCommand(_ []string, _ shellio.IO) {
 	os.Exit(0)

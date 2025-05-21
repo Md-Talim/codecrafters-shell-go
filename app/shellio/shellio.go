@@ -5,10 +5,11 @@ import (
 	"os"
 )
 
+// RedirectionConfig holds the configuration for file redirection.
 type RedirectionConfig struct {
-	File       string
-	Descriptor int
-	Append     bool
+	File            string
+	Descriptor      int
+	IsAppendEnabled bool
 }
 
 type IO interface {
@@ -17,42 +18,45 @@ type IO interface {
 	Close()
 }
 
-func NewShellIO(outputFile *os.File, errorFile *os.File) IO {
+func NewIO(outputFile, errorFile *os.File) IO {
 	return &FileRedirect{
-		Output: outputFile,
-		Error:  errorFile,
+		outputFile: outputFile,
+		errorFile:  errorFile,
 	}
 }
 
 type FileRedirect struct {
-	Output *os.File
-	Error  *os.File
+	outputFile *os.File
+	errorFile  *os.File
 }
 
+// OutputFile returns the output file. If it is not set, it returns os.Stdout.
 func (io *FileRedirect) OutputFile() *os.File {
-	if io.Output != nil {
-		return io.Output
+	if io.outputFile != nil {
+		return io.outputFile
 	} else {
 		return os.Stdout
 	}
 }
 
+// ErrorFile returns the error file. If it is not set, it returns os.Stderr.
 func (io *FileRedirect) ErrorFile() *os.File {
-	if io.Error != nil {
-		return io.Error
+	if io.errorFile != nil {
+		return io.errorFile
 	} else {
 		return os.Stderr
 	}
 }
 
+// Close closes any files that were opened for redirection.
 func (io *FileRedirect) Close() {
-	if io.Output != nil {
-		io.Output.Close()
-		io.Output = nil
+	if io.outputFile != nil {
+		io.outputFile.Close()
+		io.outputFile = nil
 	}
-	if io.Error != nil {
-		io.Error.Close()
-		io.Error = nil
+	if io.errorFile != nil {
+		io.errorFile.Close()
+		io.errorFile = nil
 	}
 }
 
@@ -62,7 +66,7 @@ func OpenIo(redirect RedirectionConfig) (IO, bool) {
 	}
 
 	flag := os.O_CREATE | os.O_WRONLY
-	if redirect.Append {
+	if redirect.IsAppendEnabled {
 		flag |= os.O_APPEND
 	} else {
 		flag |= os.O_TRUNC
@@ -75,8 +79,8 @@ func OpenIo(redirect RedirectionConfig) (IO, bool) {
 	}
 
 	if redirect.Descriptor == 1 {
-		return &FileRedirect{Output: file, Error: nil}, true
+		return &FileRedirect{outputFile: file, errorFile: nil}, true
 	} else {
-		return &FileRedirect{Output: nil, Error: file}, true
+		return &FileRedirect{outputFile: nil, errorFile: file}, true
 	}
 }

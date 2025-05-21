@@ -33,7 +33,7 @@ func eval(input string) {
 }
 
 func main() {
-	builtinCommands = make(map[string]BuiltinCommand)
+	builtinCommands = make(map[string]BuiltinCommandExecutor)
 	builtinCommands["exit"] = exitCommand
 	builtinCommands["echo"] = echoCommand
 	builtinCommands["type"] = typeCommand

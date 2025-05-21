@@ -28,8 +28,8 @@ func getRedirectionConfig(operator string, file string) shellio.RedirectionConfi
 		append = true
 	}
 	return shellio.RedirectionConfig{
-		File:       file,
-		Descriptor: descriptor,
-		Append:     append,
+		File:            file,
+		Descriptor:      descriptor,
+		IsAppendEnabled: append,
 	}
 }

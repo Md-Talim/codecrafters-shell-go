@@ -17,77 +17,95 @@ func executeExternalCommand(command string, args []string, io shellio.IO) {
 	cmd.Run()
 }
 
-func executePipeCommand(parsedCommands [][]string, finalShellIO shellio.IO) {
-	command1Def := parsedCommands[0]
-	command2Def := parsedCommands[1]
+// handleProducerInPipeline handles the producer command in a pipeline.
+// It executes the command and writes its output to the pipe.
+// It returns the exec.Cmd if an external command was started, and an error if one occurred.
+func handleProducerInPipeline(producerDef []string, pipeWriteEnd *os.File, errorFile *os.File) (*exec.Cmd, error) {
+	commandName, commandArgs := producerDef[0], producerDef[1:]
+	if executeBuiltinCommand, isBuiltinCommand := builtinCommands[commandName]; isBuiltinCommand {
+		builtinIO := shellio.NewIO(pipeWriteEnd, errorFile)
+		executeBuiltinCommand(commandArgs, builtinIO)
+		pipeWriteEnd.Close()
+		return nil, nil
+	}
 
-	if len(command1Def) == 0 || len(command2Def) == 0 {
+	externalCommand := exec.Command(commandName, commandArgs...)
+	externalCommand.Stdout = pipeWriteEnd
+	externalCommand.Stderr = errorFile
+	if err := externalCommand.Start(); err != nil {
+		return nil, fmt.Errorf("error starting producer %s: %v", commandName, err)
+	}
+
+	pipeWriteEnd.Close()
+	return externalCommand, nil
+}
+
+// handleConsumerInPipeline handles the consumer command in a pipeline.
+// It executes the command and reads its input from the pipe.
+// It returns the exec.Cmd if an external command was started, and an error if one occurred.
+func handleConsumerInPipeline(consumerDef []string, pipeReadEnd *os.File, io shellio.IO) (*exec.Cmd, error) {
+	commandName, commandArgs := consumerDef[0], consumerDef[1:]
+	if executeBuiltinCommand, isBuiltinCommand := builtinCommands[commandName]; isBuiltinCommand {
+		builtinIO := shellio.NewIO(io.OutputFile(), io.ErrorFile())
+		executeBuiltinCommand(commandArgs, builtinIO)
+		return nil, nil
+	}
+
+	externalCommand := exec.Command(commandName, commandArgs...)
+	externalCommand.Stdin = pipeReadEnd
+	externalCommand.Stdout = io.OutputFile()
+	externalCommand.Stderr = io.ErrorFile()
+	if err := externalCommand.Start(); err != nil {
+		return nil, fmt.Errorf("error starting consumer %s: %v", commandName, err)
+	}
+
+	pipeReadEnd.Close()
+	return externalCommand, nil
+}
+
+func executePipeCommand(parsedCommands [][]string, finalShellIO shellio.IO) {
+	producerDef := parsedCommands[0]
+	consumerDef := parsedCommands[1]
+
+	if len(producerDef) == 0 || len(consumerDef) == 0 {
 		fmt.Fprintln(finalShellIO.ErrorFile(), "shell: error, empty command in pipeline")
 		return
 	}
 
-	command1Name, command1Args := command1Def[0], command1Def[1:]
-	command2Name, command2Args := command2Def[0], command2Def[1:]
-
-	// Create the pipe
-	pipeReader, pipeWriter, err := os.Pipe()
+	pipeReadEnd, pipeWriteEnd, err := os.Pipe()
 	if err != nil {
 		fmt.Fprintln(finalShellIO.ErrorFile(), "shell: error creating pipe: ", err)
 		return
 	}
 
-	var cmd1Exec *exec.Cmd
-	var cmd2Exec *exec.Cmd
+	var (
+		producerCommand, consumerCommand *exec.Cmd
+		producerErr, consumerErr         error
+	)
 
-	// Execute the first command (producer)
-	if builtinCommand, ok := builtinCommands[command1Name]; ok {
-		builtinIO := shellio.NewShellIO(pipeWriter, finalShellIO.ErrorFile())
-		builtinCommand(command1Args, builtinIO)
-		pipeWriter.Close()
-	} else {
-		cmd1Exec = exec.Command(command1Name, command1Args...)
-		cmd1Exec.Stdout = pipeWriter
-		cmd1Exec.Stderr = finalShellIO.ErrorFile()
+	producerCommand, producerErr = handleProducerInPipeline(producerDef, pipeWriteEnd, finalShellIO.ErrorFile())
+	if producerErr != nil {
+		fmt.Fprintln(finalShellIO.ErrorFile(), producerErr.Error())
+		pipeWriteEnd.Close()
+		pipeReadEnd.Close()
+		return
+	}
 
-		if err := cmd1Exec.Start(); err != nil {
-			fmt.Fprintf(finalShellIO.ErrorFile(), "shell: error starting command %s: %v\n", command1Name, err)
-			pipeWriter.Close()
-			pipeReader.Close()
-			return
+	consumerCommand, consumerErr = handleConsumerInPipeline(consumerDef, pipeReadEnd, finalShellIO)
+	if consumerErr != nil {
+		fmt.Fprintln(finalShellIO.ErrorFile(), consumerErr.Error())
+		pipeReadEnd.Close()
+		if producerCommand != nil {
+			producerCommand.Wait()
 		}
-		pipeWriter.Close() // Close the write end of the pipe in the parent. cmd1 still holds it open.
+		return
 	}
 
-	// Execute the second command (consumer)
-	if builtinCommand, ok := builtinCommands[command2Name]; ok {
-		builtinIO := shellio.NewShellIO(finalShellIO.OutputFile(), finalShellIO.ErrorFile())
-		builtinCommand(command2Args, builtinIO)
-		pipeReader.Close()
-	} else {
-		cmd2Exec = exec.Command(command2Name, command2Args...)
-		cmd2Exec.Stdin = pipeReader
-		cmd2Exec.Stdout = finalShellIO.OutputFile()
-		cmd2Exec.Stderr = finalShellIO.ErrorFile()
-
-		if err := cmd2Exec.Start(); err != nil {
-			fmt.Fprintf(finalShellIO.ErrorFile(), "shell: error starting command %s: %v\n", command2Name, err)
-			pipeReader.Close() // Close read end as well
-			if cmd1Exec != nil {
-				cmd1Exec.Wait()
-			}
-			return
-		}
-
-		// Close the read end of the pipe in the parent. cmd2 still holds it open.
-		pipeReader.Close()
+	if producerCommand != nil {
+		producerCommand.Wait()
 	}
-
-	// Wait for both commands to finish
-	if cmd1Exec != nil {
-		cmd1Exec.Wait()
-	}
-	if cmd2Exec != nil {
-		cmd2Exec.Wait()
+	if consumerCommand != nil {
+		consumerCommand.Wait()
 	}
 }
 
