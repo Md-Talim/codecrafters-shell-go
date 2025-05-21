@@ -17,52 +17,6 @@ func executeExternalCommand(command string, args []string, io shellio.IO) {
 	cmd.Run()
 }
 
-// handleProducerInPipeline handles the producer command in a pipeline.
-// It executes the command and writes its output to the pipe.
-// It returns the exec.Cmd if an external command was started, and an error if one occurred.
-func handleProducerInPipeline(producerDef []string, pipeWriteEnd *os.File, errorFile *os.File) (*exec.Cmd, error) {
-	commandName, commandArgs := producerDef[0], producerDef[1:]
-	if executeBuiltinCommand, isBuiltinCommand := builtinCommands[commandName]; isBuiltinCommand {
-		builtinIO := shellio.NewIO(pipeWriteEnd, errorFile)
-		executeBuiltinCommand(commandArgs, builtinIO)
-		pipeWriteEnd.Close()
-		return nil, nil
-	}
-
-	externalCommand := exec.Command(commandName, commandArgs...)
-	externalCommand.Stdout = pipeWriteEnd
-	externalCommand.Stderr = errorFile
-	if err := externalCommand.Start(); err != nil {
-		return nil, fmt.Errorf("error starting producer %s: %v", commandName, err)
-	}
-
-	pipeWriteEnd.Close()
-	return externalCommand, nil
-}
-
-// handleConsumerInPipeline handles the consumer command in a pipeline.
-// It executes the command and reads its input from the pipe.
-// It returns the exec.Cmd if an external command was started, and an error if one occurred.
-func handleConsumerInPipeline(consumerDef []string, pipeReadEnd *os.File, io shellio.IO) (*exec.Cmd, error) {
-	commandName, commandArgs := consumerDef[0], consumerDef[1:]
-	if executeBuiltinCommand, isBuiltinCommand := builtinCommands[commandName]; isBuiltinCommand {
-		builtinIO := shellio.NewIO(io.OutputFile(), io.ErrorFile())
-		executeBuiltinCommand(commandArgs, builtinIO)
-		return nil, nil
-	}
-
-	externalCommand := exec.Command(commandName, commandArgs...)
-	externalCommand.Stdin = pipeReadEnd
-	externalCommand.Stdout = io.OutputFile()
-	externalCommand.Stderr = io.ErrorFile()
-	if err := externalCommand.Start(); err != nil {
-		return nil, fmt.Errorf("error starting consumer %s: %v", commandName, err)
-	}
-
-	pipeReadEnd.Close()
-	return externalCommand, nil
-}
-
 func executePipeCommand(parsedCommands [][]string, finalShellIO shellio.IO) {
 	producerDef := parsedCommands[0]
 	consumerDef := parsedCommands[1]
@@ -72,40 +26,92 @@ func executePipeCommand(parsedCommands [][]string, finalShellIO shellio.IO) {
 		return
 	}
 
-	pipeReadEnd, pipeWriteEnd, err := os.Pipe()
-	if err != nil {
-		fmt.Fprintln(finalShellIO.ErrorFile(), "shell: error creating pipe: ", err)
-		return
-	}
-
-	var (
-		producerCommand, consumerCommand *exec.Cmd
-		producerErr, consumerErr         error
-	)
-
-	producerCommand, producerErr = handleProducerInPipeline(producerDef, pipeWriteEnd, finalShellIO.ErrorFile())
-	if producerErr != nil {
-		fmt.Fprintln(finalShellIO.ErrorFile(), producerErr.Error())
-		pipeWriteEnd.Close()
-		pipeReadEnd.Close()
-		return
-	}
-
-	consumerCommand, consumerErr = handleConsumerInPipeline(consumerDef, pipeReadEnd, finalShellIO)
-	if consumerErr != nil {
-		fmt.Fprintln(finalShellIO.ErrorFile(), consumerErr.Error())
-		pipeReadEnd.Close()
-		if producerCommand != nil {
-			producerCommand.Wait()
+	numCommands := len(parsedCommands)
+	pipes := make([][2]*os.File, numCommands-1)
+	for i := range numCommands - 1 {
+		r, w, err := os.Pipe()
+		if err != nil {
+			fmt.Fprintf(finalShellIO.ErrorFile(), "shell: error creating pipe %d: %v\n", i, err)
+			// Clean up any pipes created so far
+			for j := range i {
+				pipes[j][0].Close()
+				pipes[j][1].Close()
+			}
+			return
 		}
-		return
+		pipes[i][0] = r
+		pipes[i][1] = w
 	}
 
-	if producerCommand != nil {
-		producerCommand.Wait()
+	var runningExternalCmds []*exec.Cmd
+
+	for i, commandDef := range parsedCommands {
+		if len(commandDef) == 0 {
+			fmt.Fprintln(finalShellIO.ErrorFile(), "shell: error, empty command in pipeline")
+			// Close all the pipe fds before returning to prevent leaks
+			for _, p := range pipes {
+				p[0].Close()
+				p[1].Close()
+			}
+			// Wait for any commands already started
+			for _, cmd := range runningExternalCmds {
+				cmd.Wait()
+			}
+			return
+		}
+
+		commandName, commandArgs := commandDef[0], commandDef[1:]
+
+		var currentStdin *os.File
+		var currentStdout *os.File
+
+		// Determine Stdin
+		if i == 0 {
+			currentStdin = os.Stdin
+		} else {
+			currentStdin = pipes[i-1][0]
+		}
+
+		// Determine Stdout
+		if i == numCommands-1 {
+			currentStdout = finalShellIO.OutputFile()
+		} else {
+			currentStdout = pipes[i][1]
+		}
+
+		if builtinCommandExecutor, isBuiltinCommand := builtinCommands[commandName]; isBuiltinCommand {
+			builtinIO := shellio.NewIO(currentStdout, finalShellIO.ErrorFile())
+			builtinCommandExecutor(commandArgs, builtinIO)
+		} else {
+			externalCommand := exec.Command(commandName, commandArgs...)
+			externalCommand.Stdin = currentStdin
+			externalCommand.Stdout = currentStdout
+			externalCommand.Stderr = finalShellIO.ErrorFile()
+
+			if err := externalCommand.Start(); err != nil {
+				fmt.Fprintf(finalShellIO.ErrorFile(), "shell: error starting command %s: %v\n", commandName, err)
+				// Close all the pipe fds before returning to prevent leaks
+				for _, p := range pipes {
+					p[0].Close()
+					p[1].Close()
+				}
+				return
+			}
+
+			runningExternalCmds = append(runningExternalCmds, externalCommand)
+		}
 	}
-	if consumerCommand != nil {
-		consumerCommand.Wait()
+
+	// After all commands are configured and external ones started,
+	// the parent process must close all its copies of the pipe file descriptors.
+	// This signals EOF to readers when writers are done.
+	for _, p := range pipes {
+		p[0].Close()
+		p[1].Close()
+	}
+
+	for _, cmd := range runningExternalCmds {
+		cmd.Wait()
 	}
 }
 

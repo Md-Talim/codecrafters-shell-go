@@ -27,7 +27,7 @@ func eval(input string) {
 
 	if len(parsedCommands) == 1 {
 		executeSingleCommand(parsedCommands, shellio)
-	} else if len(parsedCommands) == 2 {
+	} else {
 		executePipeCommand(parsedCommands, shellio)
 	}
 }
