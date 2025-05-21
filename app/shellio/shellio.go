@@ -17,6 +17,13 @@ type IO interface {
 	Close()
 }
 
+func NewShellIO(outputFile *os.File, errorFile *os.File) IO {
+	return &FileRedirect{
+		Output: outputFile,
+		Error:  errorFile,
+	}
+}
+
 type FileRedirect struct {
 	Output *os.File
 	Error  *os.File

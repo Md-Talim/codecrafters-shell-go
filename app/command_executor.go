@@ -17,12 +17,12 @@ func executeExternalCommand(command string, args []string, io shellio.IO) {
 	cmd.Run()
 }
 
-func executePipeCommand(parsedCommands [][]string, shellio shellio.IO) {
+func executePipeCommand(parsedCommands [][]string, finalShellIO shellio.IO) {
 	command1Def := parsedCommands[0]
 	command2Def := parsedCommands[1]
 
 	if len(command1Def) == 0 || len(command2Def) == 0 {
-		fmt.Fprintln(shellio.ErrorFile(), "shell: error, empty command in pipeline")
+		fmt.Fprintln(finalShellIO.ErrorFile(), "shell: error, empty command in pipeline")
 		return
 	}
 
@@ -30,49 +30,64 @@ func executePipeCommand(parsedCommands [][]string, shellio shellio.IO) {
 	command2Name, command2Args := command2Def[0], command2Def[1:]
 
 	// Create the pipe
-	r, w, err := os.Pipe()
+	pipeReader, pipeWriter, err := os.Pipe()
 	if err != nil {
-		fmt.Fprintln(shellio.ErrorFile(), "shell: error creating pipe: ", err)
+		fmt.Fprintln(finalShellIO.ErrorFile(), "shell: error creating pipe: ", err)
 		return
 	}
 
-	// First command
-	cmd1 := exec.Command(command1Name, command1Args...)
-	cmd1.Stdout = w
-	cmd1.Stderr = shellio.ErrorFile()
+	var cmd1Exec *exec.Cmd
+	var cmd2Exec *exec.Cmd
 
-	// Second command
-	cmd2 := exec.Command(command2Name, command2Args...)
-	cmd2.Stdin = r
-	cmd2.Stdout = shellio.OutputFile()
-	cmd2.Stderr = shellio.ErrorFile()
+	// Execute the first command (producer)
+	if builtinCommand, ok := builtinCommands[command1Name]; ok {
+		builtinIO := shellio.NewShellIO(pipeWriter, finalShellIO.ErrorFile())
+		builtinCommand(command1Args, builtinIO)
+		pipeWriter.Close()
+	} else {
+		cmd1Exec = exec.Command(command1Name, command1Args...)
+		cmd1Exec.Stdout = pipeWriter
+		cmd1Exec.Stderr = finalShellIO.ErrorFile()
 
-	if err := cmd1.Start(); err != nil {
-		fmt.Fprintf(shellio.ErrorFile(), "shell: error starting command %s: %v\n", command1Name, err)
-		w.Close()
-		r.Close()
-		return
-	}
-	// Close the write end of the pipe in the parent. cmd1 still holds it open.
-	// This is crucial so that cmd2 receives EOF when cmd1 finishes.
-	w.Close()
-
-	if err := cmd2.Start(); err != nil {
-		fmt.Fprintf(shellio.ErrorFile(), "shell: error starting command %s: %v\n", command2Name, err)
-		r.Close()   // Close read end as well
-		cmd1.Wait() // Attempt to reap cmd1 if it started
-		return
+		if err := cmd1Exec.Start(); err != nil {
+			fmt.Fprintf(finalShellIO.ErrorFile(), "shell: error starting command %s: %v\n", command1Name, err)
+			pipeWriter.Close()
+			pipeReader.Close()
+			return
+		}
+		pipeWriter.Close() // Close the write end of the pipe in the parent. cmd1 still holds it open.
 	}
 
-	// Close the read end of the pipe in the parent. cmd2 still holds it open.
-	r.Close()
+	// Execute the second command (consumer)
+	if builtinCommand, ok := builtinCommands[command2Name]; ok {
+		builtinIO := shellio.NewShellIO(finalShellIO.OutputFile(), finalShellIO.ErrorFile())
+		builtinCommand(command2Args, builtinIO)
+		pipeReader.Close()
+	} else {
+		cmd2Exec = exec.Command(command2Name, command2Args...)
+		cmd2Exec.Stdin = pipeReader
+		cmd2Exec.Stdout = finalShellIO.OutputFile()
+		cmd2Exec.Stderr = finalShellIO.ErrorFile()
+
+		if err := cmd2Exec.Start(); err != nil {
+			fmt.Fprintf(finalShellIO.ErrorFile(), "shell: error starting command %s: %v\n", command2Name, err)
+			pipeReader.Close() // Close read end as well
+			if cmd1Exec != nil {
+				cmd1Exec.Wait()
+			}
+			return
+		}
+
+		// Close the read end of the pipe in the parent. cmd2 still holds it open.
+		pipeReader.Close()
+	}
 
 	// Wait for both commands to finish
-	if err := cmd1.Wait(); err != nil {
-		fmt.Fprintf(shellio.ErrorFile(), "shell: error waiting for command %s: %v\n", command1Name, err)
+	if cmd1Exec != nil {
+		cmd1Exec.Wait()
 	}
-	if err := cmd2.Wait(); err != nil {
-		fmt.Fprintf(shellio.ErrorFile(), "shell: error waiting for command %s: %v\n", command2Name, err)
+	if cmd2Exec != nil {
+		cmd2Exec.Wait()
 	}
 }
 
