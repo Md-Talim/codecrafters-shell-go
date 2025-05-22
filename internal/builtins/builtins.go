@@ -1,4 +1,4 @@
-package main
+package builtins
 
 import (
 	"fmt"
@@ -6,12 +6,23 @@ import (
 	"path"
 	"strings"
 
-	"github.com/md-talim/codecrafters-shell-go/app/shellio"
+	"github.com/md-talim/codecrafters-shell-go/internal/shellio"
+	"github.com/md-talim/codecrafters-shell-go/internal/utils"
 )
 
 type BuiltinCommandExecutor func([]string, shellio.IO)
+type BuiltinCommandsMap map[string]BuiltinCommandExecutor
 
-var builtinCommands map[string]BuiltinCommandExecutor
+func BuiltinCommands() BuiltinCommandsMap {
+	builtinCommands := BuiltinCommandsMap{
+		"cd":   cdCommand,
+		"echo": echoCommand,
+		"exit": exitCommand,
+		"pwd":  pwdCommand,
+		"type": typeCommand,
+	}
+	return builtinCommands
+}
 
 func exitCommand(_ []string, _ shellio.IO) {
 	os.Exit(0)
@@ -33,7 +44,7 @@ func typeCommand(args []string, io shellio.IO) {
 		case "exit", "echo", "type", "pwd":
 			fmt.Fprintf(io.OutputFile(), "%s is a shell builtin\n", arg)
 		default:
-			if path, ok := findPath(arg); ok {
+			if path, ok := utils.FindPath(arg); ok {
 				fmt.Fprintf(io.OutputFile(), "%s is %s\n", arg, path)
 			} else {
 				fmt.Fprintf(io.OutputFile(), "%s: not found\n", arg)

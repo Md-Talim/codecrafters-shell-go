@@ -1,44 +1,11 @@
 package main
 
 import (
-	"github.com/md-talim/codecrafters-shell-go/app/parser"
-	"github.com/md-talim/codecrafters-shell-go/app/shellio"
+	"github.com/md-talim/codecrafters-shell-go/internal/executor"
 )
-
-type ReadResult int
-
-const (
-	ReadResultQuit ReadResult = iota
-	ReadResultEmpty
-	ReadResultContent
-)
-
-func eval(input string) {
-	parser := parser.NewParser(input)
-	parsedCommands, redirectionConfig := parser.Parse()
-	if len(parsedCommands) <= 0 {
-		return
-	}
-
-	shellio, isRedirected := shellio.OpenIo(redirectionConfig)
-	if isRedirected {
-		defer shellio.Close()
-	}
-
-	if len(parsedCommands) == 1 {
-		executeSingleCommand(parsedCommands, shellio)
-	} else {
-		executePipeCommand(parsedCommands, shellio)
-	}
-}
 
 func main() {
-	builtinCommands = make(map[string]BuiltinCommandExecutor)
-	builtinCommands["exit"] = exitCommand
-	builtinCommands["echo"] = echoCommand
-	builtinCommands["type"] = typeCommand
-	builtinCommands["pwd"] = pwdCommand
-	builtinCommands["cd"] = cdCommand
+	commandExecutor := executor.NewExecutor()
 
 	for {
 		input, result := read()
@@ -49,7 +16,7 @@ func main() {
 		case ReadResultEmpty:
 			continue
 		case ReadResultContent:
-			eval(input)
+			commandExecutor.Execute(input)
 		}
 	}
 }

@@ -1,10 +1,11 @@
 package parser
 
 import (
-	"log"
+	"fmt"
+	"os"
 	"strings"
 
-	"github.com/md-talim/codecrafters-shell-go/app/shellio"
+	"github.com/md-talim/codecrafters-shell-go/internal/shellio"
 )
 
 const (
@@ -60,7 +61,6 @@ func (p *Parser) Parse() ([][]string, shellio.RedirectionConfig) {
 			// Add pending arguments for the current (which will be the last) command.
 			if len(currentCommandArgs) > 0 {
 				allCommands = append(allCommands, currentCommandArgs)
-				currentCommandArgs = []string{}
 			}
 			// If currentCommandArgs is empt here, but allCommands is not, it implies "cmd1 | > out".
 			// This is a syntax error (missing command after pipe before redirection).
@@ -70,7 +70,7 @@ func (p *Parser) Parse() ([][]string, shellio.RedirectionConfig) {
 
 			fileName := p.nextArgument()
 			if fileName == nil {
-				log.Fatalln("Expect file name after >")
+				fmt.Fprintln(os.Stderr, "Error: Missing file name for redirection")
 				return nil, shellio.RedirectionConfig{}
 			}
 			redirection = getRedirectionConfig(token, *fileName)

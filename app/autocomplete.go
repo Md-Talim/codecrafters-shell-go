@@ -2,8 +2,11 @@ package main
 
 import (
 	"os"
+	"path"
 	"slices"
 	"strings"
+
+	"github.com/md-talim/codecrafters-shell-go/internal/builtins"
 )
 
 type AutoCompleteResult int
@@ -35,7 +38,7 @@ func findSharedPrefix(completions []string) string {
 
 	end := 1
 	for ; end < firstLength; end += 1 {
-		oneIsNotMatching := false
+		prefixMismatchFound := false
 
 		for index, completion := range completions {
 			if index == 0 {
@@ -43,12 +46,12 @@ func findSharedPrefix(completions []string) string {
 			}
 
 			if first[:end] != completion[:end] {
-				oneIsNotMatching = true
+				prefixMismatchFound = true
 				break
 			}
 		}
 
-		if oneIsNotMatching {
+		if prefixMismatchFound {
 			end -= 1
 			break
 		}
@@ -60,7 +63,7 @@ func findSharedPrefix(completions []string) string {
 func autocomplete(line *string, bellRang bool) AutoCompleteResult {
 	var completions []string
 
-	for name := range builtinCommands {
+	for name := range builtins.BuiltinCommands() {
 		if strings.HasPrefix(name, *line) {
 			completion := name[len(*line):]
 			completions = append(completions, completion)
@@ -82,7 +85,7 @@ func autocomplete(line *string, bellRang bool) AutoCompleteResult {
 				continue
 			}
 
-			path := strings.Join([]string{directory, name}, "/")
+			path := path.Join(directory, name)
 			stat, err := os.Stat(path)
 			if err != nil || !stat.Mode().IsRegular() || stat.Mode().Perm()&0111 == 0 {
 				continue

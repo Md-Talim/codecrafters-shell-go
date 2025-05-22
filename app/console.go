@@ -1,10 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/pkg/term/termios"
 	"golang.org/x/sys/unix"
+)
+
+type ReadResult int
+
+const (
+	ReadResultQuit ReadResult = iota
+	ReadResultEmpty
+	ReadResultContent
 )
 
 func prompt() {
@@ -17,7 +26,8 @@ func read() (string, ReadResult) {
 	var stdinFd = os.Stdin.Fd()
 	var previous unix.Termios
 	if err := termios.Tcgetattr(stdinFd, &previous); err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, "Error initializing terminal: ", err)
+		return "", ReadResultQuit
 	}
 
 	var new = unix.Termios(previous)

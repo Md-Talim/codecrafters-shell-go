@@ -3,7 +3,7 @@ package parser
 import (
 	"strings"
 
-	"github.com/md-talim/codecrafters-shell-go/app/shellio"
+	"github.com/md-talim/codecrafters-shell-go/internal/shellio"
 )
 
 func mapBackshlash(character byte) byte {
