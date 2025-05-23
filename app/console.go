@@ -64,7 +64,7 @@ func read() (string, ReadResult) {
 			fallthrough
 		case '\n': // NEW LINE
 			os.Stdout.Write([]byte{'\r', '\n'})
-			historyNavigationIndex = executor.GetHistoryLength()
+			historyNavigationIndex++
 			if len(line) == 0 {
 				return "", ReadResultEmpty
 			} else {
@@ -105,8 +105,8 @@ func read() (string, ReadResult) {
 					continue
 				}
 				if historyNavigationIndex > 0 {
-					recalledCommand, ok := executor.GetHistoryEntry(historyNavigationIndex)
 					historyNavigationIndex--
+					recalledCommand, ok := executor.GetHistoryEntry(historyNavigationIndex)
 					if ok {
 						currentVisualLength := len(line)
 						fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len("$ ")+currentVisualLength))
