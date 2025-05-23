@@ -10,6 +10,7 @@ import (
 )
 
 func Execute(input string) {
+	addCommandToHistory(input)
 	p := parser.NewParser(input)
 	parsedCommands, redirectionConfig := p.Parse()
 

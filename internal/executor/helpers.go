@@ -55,3 +55,7 @@ func initializePipes(numPipes int) ([][2]*os.File, error) {
 	}
 	return pipes, nil
 }
+
+func addCommandToHistory(command string) {
+	shellHistory = append(shellHistory, command)
+}

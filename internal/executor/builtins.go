@@ -14,14 +14,16 @@ type BuiltinCommandExecutor func([]string, shellio.IO)
 type BuiltinCommandsMap map[string]BuiltinCommandExecutor
 
 var builtinCommands BuiltinCommandsMap
+var shellHistory []string
 
 func init() {
 	builtinCommands = BuiltinCommandsMap{
-		"cd":   cdCommand,
-		"echo": echoCommand,
-		"exit": exitCommand,
-		"pwd":  pwdCommand,
-		"type": typeCommand,
+		"cd":      cdCommand,
+		"echo":    echoCommand,
+		"exit":    exitCommand,
+		"history": historyCommand,
+		"pwd":     pwdCommand,
+		"type":    typeCommand,
 	}
 }
 
@@ -80,5 +82,21 @@ func cdCommand(args []string, io shellio.IO) {
 
 	if err := os.Chdir(newDir); err != nil {
 		fmt.Fprintf(io.ErrorFile(), "cd: %s: No such file or directory\n", newDir)
+	}
+}
+
+func historyCommand(args []string, io shellio.IO) {
+	if len(args) > 0 {
+		fmt.Fprintln(io.ErrorFile(), "history: too many arguments")
+		return
+	}
+
+	if len(shellHistory) == 0 {
+		fmt.Fprintln(io.OutputFile(), "No commands in history.")
+		return
+	}
+
+	for i, command := range shellHistory {
+		fmt.Fprintf(io.OutputFile(), "    %d  %s\n", i+1, command)
 	}
 }
