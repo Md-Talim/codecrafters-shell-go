@@ -86,17 +86,14 @@ func cdCommand(args []string, io shellio.IO) {
 }
 
 func historyCommand(args []string, io shellio.IO) {
-	if len(args) > 0 {
-		fmt.Fprintln(io.ErrorFile(), "history: too many arguments")
+	limit, err := getHistoryLimit(args)
+	if err != nil {
+		fmt.Fprintln(io.ErrorFile(), err)
 		return
 	}
 
-	if len(shellHistory) == 0 {
-		fmt.Fprintln(io.OutputFile(), "No commands in history.")
-		return
-	}
-
-	for i, command := range shellHistory {
-		fmt.Fprintf(io.OutputFile(), "    %d  %s\n", i+1, command)
+	startIndex := len(shellHistory) - limit
+	for i := startIndex; i < len(shellHistory); i++ {
+		fmt.Fprintf(io.OutputFile(), "    %d  %s\n", i+1, shellHistory[i])
 	}
 }

@@ -3,6 +3,7 @@ package executor
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func (pr *PipelineRunner) determineStageIO(commandIndex, numTotalCommands int) (stdin, stdout *os.File) {
@@ -58,4 +59,25 @@ func initializePipes(numPipes int) ([][2]*os.File, error) {
 
 func addCommandToHistory(command string) {
 	shellHistory = append(shellHistory, command)
+}
+
+func getHistoryLimit(args []string) (int, error) {
+	if len(args) > 1 {
+		return 0, fmt.Errorf("history: too many arguments")
+	}
+	if len(shellHistory) == 0 {
+		return 0, fmt.Errorf("no commands in history")
+	}
+
+	var limit int
+	var err error
+	if len(args) == 1 {
+		limit, err = strconv.Atoi(args[0])
+		if err != nil {
+			return 0, fmt.Errorf("invalid argument: %s", args[0])
+		}
+	} else {
+		limit = len(shellHistory)
+	}
+	return limit, nil
 }
