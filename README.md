@@ -2,7 +2,7 @@
 
 # Build Your Own Shell (Go Edition)
 
-This project is a custom implementation of a POSIX-compliant shell built in Go. It interprets shell commands, runs external programs, supports built-in commands like `cd`, `pwd`, `echo`, and handles features like I/O redirection, multi-stage pipelines, and command autocompletion.
+This project is a custom implementation of a POSIX-compliant shell built in Go. It interprets shell commands, runs external programs, supports built-in commands like `cd`, `pwd`, `echo`, `history`, and handles features like I/O redirection, multi-stage pipelines, command autocompletion, and command history navigation.
 
 This project is part of the ["Build Your Own Shell" Challenge](https://app.codecrafters.io/courses/shell/overview) by Codecrafters. It's an excellent way to learn about the internal workings of shells and practice Go programming concepts.
 
@@ -33,11 +33,12 @@ This project implements a shell in Go that:
 
 -   Accepts user input via a REPL (Read-Eval-Print Loop).
 -   Parses complex command lines, including quoted arguments and escape sequences.
--   Executes built-in commands like `cd`, `pwd`, `echo`, `exit`, and `type`.
+-   Executes built-in commands like `cd`, `pwd`, `echo`, `exit`, `type`, and `history`.
 -   Runs external programs by searching for executables in the system's `PATH`.
 -   Supports multi-stage command pipelines (e.g., `ls | grep .go | wc -l`).
 -   Handles input/output redirection (e.g., `>`, `>>`, `2>`).
 -   Provides autocompletion for commands (both built-in and external) and file paths.
+-   Allows navigation and recall of command history using arrow keys.
 -   Manages terminal I/O in raw mode for advanced input handling.
 
 The purpose of this project is to gain a deep understanding of shell mechanics and to build a non-trivial system using Go.
@@ -78,6 +79,8 @@ Execute the shell using the provided script:
 -   Enter commands like `pwd`, `echo Hello World`, `ls -l`, or `cat file.txt | grep keyword`.
 -   Use `Ctrl+D` or the `exit` command to terminate the shell.
 -   Press `Tab` for command autocompletion.
+-   Use Up/Down arrow keys to navigate through command history.
+-   Type `history` to see a list of previous commands, or `history <n>` to see the last `n` commands.
 
 ## ✨ Key Features
 
@@ -87,6 +90,7 @@ Execute the shell using the provided script:
     -   `echo`: Display a line of text.
     -   `exit`: Terminate the shell.
     -   `type`: Display information about command type (builtin or external).
+    -   `history [n]`: Display command history, optionally limited to the last `n` entries.
 -   **External Command Execution**:
     -   Locates and runs external programs using the system `PATH`.
     -   Utilizes Go's `os/exec` package for process management.
@@ -99,28 +103,32 @@ Execute the shell using the provided script:
 -   **Autocompletion**:
     -   Press `Tab` to autocomplete command names (built-ins and executables from `PATH`).
     -   Suggests multiple completions if ambiguous.
+-   **Command History Navigation**:
+    -   Recall previous commands using the Up arrow key.
+    -   Navigate to newer recalled commands or an empty line using the Down arrow key.
 -   **Error Handling**:
     -   Provides informative error messages for issues like command not found, incorrect arguments, or file permission errors.
     -   Designed to prevent crashes from unexpected input or runtime issues.
 -   **Raw Terminal Mode**:
-    -   Captures input character-by-character for features like autocompletion and immediate feedback, without waiting for Enter.
+    -   Captures input character-by-character for features like autocompletion, history navigation, and immediate feedback, without waiting for Enter.
     -   Uses `github.com/pkg/term/termios` and `golang.org/x/sys/unix` for low-level terminal control.
 
 ## 🔍 How It Works Internally
 
 The shell is structured into several key components:
 
-| Component                               | Role                                                                                               |
-| :-------------------------------------- | :------------------------------------------------------------------------------------------------- |
-| `app/main.go`                           | Entry point, contains the main REPL loop.                                                          |
-| `app/console.go`                        | Handles raw terminal input, character processing, and prompt display.                              |
-| `app/autocomplete.go`                   | Implements tab-completion logic for commands and files.                                            |
-| `internal/parser/parser.go`             | Parses the raw input string into commands, arguments, and redirection configurations.              |
-| `internal/executor/command_executor.go` | Orchestrates command execution, deciding between single commands and pipelines.                    |
-| `internal/executor/pipeline_runner.go`  | Manages the setup and execution of multi-stage command pipelines, including pipe creation and I/O. |
-| `internal/builtins/builtins.go`         | Defines and implements built-in shell commands.                                                    |
-| `internal/shellio/shellio.go`           | Manages I/O streams, including handling **file** redirections.                                     |
-| `internal/utils/path.go`                | Provides utility functions, such as searching for executables in the system `PATH`.                |
+| Component                               | Role                                                                                                            |
+| :-------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `app/main.go`                           | Entry point, contains the main REPL loop.                                                                       |
+| `app/console.go`                        | Handles raw terminal input, character processing, prompt display, arrow key navigation for history.             |
+| `app/autocomplete.go`                   | Implements tab-completion logic for commands and files.                                                         |
+| `internal/parser/parser.go`             | Parses the raw input string into commands, arguments, and redirection configurations.                           |
+| `internal/executor/command_executor.go` | Orchestrates command execution, deciding between single commands and pipelines.                                 |
+| `internal/executor/pipeline_runner.go`  | Manages the setup and execution of multi-stage command pipelines, including pipe creation and I/O.              |
+| `internal/executor/builtins.go`         | Defines and implements built-in shell commands, stores command history, provides history access.                |
+| `internal/executor/helpers.go`          | Contains helper functions for the executor, including adding commands to history and parsing history arguments. |
+| `internal/shellio/shellio.go`           | Manages I/O streams, including handling **file** redirections.                                                  |
+| `internal/utils/path.go`                | Provides utility functions, such as searching for executables in the system `PATH`.                             |
 
 ## 🧰 Technologies Used
 
@@ -132,18 +140,16 @@ The shell is structured into several key components:
 ## 📁 Folder and File Structure
 
 ```
-.
 ├── app/                      # Main application package (REPL, console, autocomplete)
 │   ├── main.go
 │   ├── console.go
 │   └── autocomplete.go
 ├── internal/                 # Internal packages not intended for external use
-│   ├── builtins/             # Built-in command implementations
-│   │   └── builtins.go
-│   ├── executor/             # Command execution logic
-│   │   ├── command_executor.go
-│   │   ├── pipeline_runner.go
-│   │   └── helpers.go
+│   ├── executor/             # Command execution logic and built-ins
+│   │   ├── builtins.go         # Built-in commands, history storage and access
+│   │   ├── command_executor.go # Main execution dispatcher
+│   │   ├── helpers.go          # Executor helpers, history utilities
+│   │   └── pipeline_runner.go  # Pipeline execution logic
 │   ├── parser/               # Input parsing logic
 │   │   ├── parser.go
 │   │   └── utils.go
@@ -158,10 +164,12 @@ The shell is structured into several key components:
 
 **Key files:**
 -   `app/main.go`: The entry point and main loop of the shell.
+-   `app/console.go`: Handles raw terminal input, including arrow key processing for history.
 -   `internal/parser/parser.go`: Handles the parsing of user input.
 -   `internal/executor/command_executor.go`: Manages the execution of parsed commands.
 -   `internal/executor/pipeline_runner.go`: Specifically handles the execution of command pipelines.
--   `internal/builtins/builtins.go`: Contains the implementations for built-in commands.
+-   `internal/executor/builtins.go`: Contains implementations for built-in commands and history access functions.
+-   `internal/executor/helpers.go`: Includes functions for adding commands to history and processing `history` command arguments.
 
 ## 💡 Challenges & Lessons Learned
 
@@ -175,9 +183,10 @@ The shell is structured into several key components:
     -   Properly closing file descriptors to avoid deadlocks or resource leaks.
 3.  **I/O Redirection**:
     -   Integrating redirection with single commands and pipelines, ensuring correct file opening, and stream management.
-4.  **Raw Terminal Mode & Autocompletion**:
-    -   Interacting with low-level terminal settings to capture individual keystrokes.
+4.  **Raw Terminal Mode, Autocompletion & History Navigation**:
+    -   Interacting with low-level terminal settings to capture individual keystrokes (including escape sequences for arrow keys).
     -   Implementing a responsive and context-aware autocompletion system.
+    -   Managing state for history navigation (`historyNavigationIndex`) and correctly updating the display.
 5.  **Process Management**:
     -   Correctly launching, managing, and waiting for external processes using `os/exec`.
 
@@ -185,8 +194,8 @@ The shell is structured into several key components:
 
 -   Improved proficiency in Go, process management, and low-level I/O.
 -   Gained a much deeper understanding of how operating system shells function internally.
--   Learned the intricacies of POSIX terminal control and inter-process communication.
--   Developed skills in designing and implementing modular systems with clear separation of concerns.
+-   Learned the intricacies of POSIX terminal control, escape sequence parsing, and inter-process communication.
+-   Developed skills in designing and implementing modular systems with clear separation of concerns, especially in managing state for interactive features.
 
 ## 🛠️ Why I Built This Project
 
@@ -202,8 +211,8 @@ This project has been a significant learning experience, enhancing my skills as 
 
 ## 🚀 Future Features
 
--   **Command History**: Implement history functionality, allowing users to navigate and re-execute previous commands (e.g., using arrow keys).
 -   **Job Control**: Add support for backgrounding processes (`&`) and managing jobs (`fg`, `bg`, `jobs`).
 -   **Shell Variables & Expansion**: Introduce support for setting and using shell variables.
 -   **Globbing**: Implement wildcard expansion for filenames (e.g., `ls *.txt`).
 -   **Scripting**: Basic shell script execution capabilities.
+-   **More Advanced Editing**: Cursor movement within the line (left/right arrows), insert/delete characters.
