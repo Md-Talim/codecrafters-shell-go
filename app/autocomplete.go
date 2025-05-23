@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/md-talim/codecrafters-shell-go/internal/builtins"
+	"github.com/md-talim/codecrafters-shell-go/internal/executor"
 )
 
 type AutoCompleteResult int
@@ -63,7 +63,7 @@ func findSharedPrefix(completions []string) string {
 func autocomplete(line *string, bellRang bool) AutoCompleteResult {
 	var completions []string
 
-	for name := range builtins.BuiltinCommands() {
+	for name := range executor.BuiltinCommands() {
 		if strings.HasPrefix(name, *line) {
 			completion := name[len(*line):]
 			completions = append(completions, completion)

@@ -1,4 +1,4 @@
-package builtins
+package executor
 
 import (
 	"fmt"
@@ -13,14 +13,19 @@ import (
 type BuiltinCommandExecutor func([]string, shellio.IO)
 type BuiltinCommandsMap map[string]BuiltinCommandExecutor
 
-func BuiltinCommands() BuiltinCommandsMap {
-	builtinCommands := BuiltinCommandsMap{
+var builtinCommands BuiltinCommandsMap
+
+func init() {
+	builtinCommands = BuiltinCommandsMap{
 		"cd":   cdCommand,
 		"echo": echoCommand,
 		"exit": exitCommand,
 		"pwd":  pwdCommand,
 		"type": typeCommand,
 	}
+}
+
+func BuiltinCommands() BuiltinCommandsMap {
 	return builtinCommands
 }
 

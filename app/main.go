@@ -5,8 +5,6 @@ import (
 )
 
 func main() {
-	commandExecutor := executor.NewExecutor()
-
 	for {
 		input, result := read()
 
@@ -16,7 +14,7 @@ func main() {
 		case ReadResultEmpty:
 			continue
 		case ReadResultContent:
-			commandExecutor.Execute(input)
+			executor.Execute(input)
 		}
 	}
 }
