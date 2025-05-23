@@ -122,6 +122,25 @@ func read() (string, ReadResult) {
 				} else {
 					bell()
 				}
+			case 'B': // Down Arrow
+				if executor.GetHistoryLength() == 0 || historyNavigationIndex <= 0 {
+					bell()
+					continue
+				}
+				historyNavigationIndex++
+				recalledCommand, ok := executor.GetHistoryEntry(historyNavigationIndex)
+				if ok {
+					currentVisualLength := len(line)
+					fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len("$ ")+currentVisualLength))
+					prompt()
+					os.Stdout.WriteString(recalledCommand)
+					line = recalledCommand
+				} else {
+					if historyNavigationIndex > executor.GetHistoryLength() {
+						historyNavigationIndex--
+					}
+					bell()
+				}
 			}
 
 		case 0x7f: // BACKSPACE
