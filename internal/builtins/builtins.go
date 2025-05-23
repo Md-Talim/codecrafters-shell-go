@@ -41,7 +41,7 @@ func typeCommand(args []string, io shellio.IO) {
 
 	for _, arg := range args {
 		switch arg {
-		case "exit", "echo", "type", "pwd":
+		case "exit", "echo", "type", "pwd", "cd", "history":
 			fmt.Fprintf(io.OutputFile(), "%s is a shell builtin\n", arg)
 		default:
 			if path, ok := utils.FindPath(arg); ok {
