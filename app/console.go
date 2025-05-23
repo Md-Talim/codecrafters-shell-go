@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/md-talim/codecrafters-shell-go/internal/executor"
 	"github.com/pkg/term/termios"
 	"golang.org/x/sys/unix"
 )
@@ -19,6 +21,8 @@ const (
 func prompt() {
 	os.Stdout.Write([]byte{'$', ' '})
 }
+
+var historyNavigationIndex int
 
 func read() (string, ReadResult) {
 	prompt()
@@ -60,6 +64,7 @@ func read() (string, ReadResult) {
 			fallthrough
 		case '\n': // NEW LINE
 			os.Stdout.Write([]byte{'\r', '\n'})
+			historyNavigationIndex = executor.GetHistoryLength()
 			if len(line) == 0 {
 				return "", ReadResultEmpty
 			} else {
@@ -80,8 +85,44 @@ func read() (string, ReadResult) {
 			}
 
 		case 0x1b: // ARROW KEYS
-			os.Stdin.Read(buffer) // '['
-			os.Stdin.Read(buffer) // 'A' or 'B' or 'C' or 'D'
+			// Read the next byte for '['
+			bracketBuffer := make([]byte, 1)
+			n, err := os.Stdin.Read(bracketBuffer)
+			if err != nil || n == 0 || bracketBuffer[0] != '[' {
+				continue
+			}
+			// Got 'ESC [', now read the arrow code
+			arrowCodeBuffer := make([]byte, 1)
+			n, err = os.Stdin.Read(arrowCodeBuffer)
+			if err != nil || n == 0 {
+				continue
+			}
+
+			switch arrowCodeBuffer[0] {
+			case 'A': // Up Arrow
+				if executor.GetHistoryLength() == 0 {
+					bell()
+					continue
+				}
+				if historyNavigationIndex > 0 {
+					recalledCommand, ok := executor.GetHistoryEntry(historyNavigationIndex)
+					historyNavigationIndex--
+					if ok {
+						currentVisualLength := len(line)
+						fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len("$ ")+currentVisualLength))
+						prompt()
+						os.Stdout.WriteString(recalledCommand)
+						line = recalledCommand
+					} else {
+						if historyNavigationIndex < executor.GetHistoryLength() {
+							historyNavigationIndex++
+						}
+						bell()
+					}
+				} else {
+					bell()
+				}
+			}
 
 		case 0x7f: // BACKSPACE
 			if len(line) != 0 {
@@ -91,6 +132,7 @@ func read() (string, ReadResult) {
 		default:
 			os.Stdout.Write(buffer)
 			line += string(character)
+			historyNavigationIndex = executor.GetHistoryLength()
 		}
 	}
 }

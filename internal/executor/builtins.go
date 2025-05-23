@@ -31,6 +31,17 @@ func BuiltinCommands() BuiltinCommandsMap {
 	return builtinCommands
 }
 
+func GetHistoryLength() int {
+	return len(shellHistory)
+}
+
+func GetHistoryEntry(index int) (string, bool) {
+	if index >= 0 && index < len(shellHistory) {
+		return shellHistory[index], true
+	}
+	return "", false
+}
+
 func exitCommand(_ []string, _ shellio.IO) {
 	os.Exit(0)
 }
