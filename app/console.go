@@ -64,10 +64,10 @@ func read() (string, ReadResult) {
 			fallthrough
 		case '\n': // NEW LINE
 			os.Stdout.Write([]byte{'\r', '\n'})
-			historyNavigationIndex++
 			if len(line) == 0 {
 				return "", ReadResultEmpty
 			} else {
+				historyNavigationIndex++
 				return line, ReadResultContent
 			}
 
@@ -85,6 +85,10 @@ func read() (string, ReadResult) {
 			}
 
 		case 0x1b: // ARROW KEYS
+			if executor.GetHistoryLength() == 0 {
+				bell()
+				continue
+			}
 			// Read the next byte for '['
 			bracketBuffer := make([]byte, 1)
 			n, err := os.Stdin.Read(bracketBuffer)
@@ -100,45 +104,29 @@ func read() (string, ReadResult) {
 
 			switch arrowCodeBuffer[0] {
 			case 'A': // Up Arrow
-				if executor.GetHistoryLength() == 0 {
+				if historyNavigationIndex <= 0 {
 					bell()
 					continue
 				}
-				if historyNavigationIndex > 0 {
-					historyNavigationIndex--
-					recalledCommand, ok := executor.GetHistoryEntry(historyNavigationIndex)
-					if ok {
+				targetIndex := historyNavigationIndex - 1
+				if recallCommandFromHistory(&line, targetIndex) {
+					historyNavigationIndex = targetIndex
+				}
+			case 'B': // Down Arrow
+				if historyNavigationIndex < executor.GetHistoryLength() {
+					targetIndex := historyNavigationIndex + 1
+					if targetIndex < executor.GetHistoryLength() {
+						if recallCommandFromHistory(&line, targetIndex) {
+							historyNavigationIndex = targetIndex
+						}
+					} else { // Moving from last history item to the "new command" line
 						currentVisualLength := len(line)
 						fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len("$ ")+currentVisualLength))
 						prompt()
-						os.Stdout.WriteString(recalledCommand)
-						line = recalledCommand
-					} else {
-						if historyNavigationIndex < executor.GetHistoryLength() {
-							historyNavigationIndex++
-						}
-						bell()
+						line = ""                            // Clear the line buffer
+						historyNavigationIndex = targetIndex // Now at executor.GetHistoryLength()
 					}
 				} else {
-					bell()
-				}
-			case 'B': // Down Arrow
-				if executor.GetHistoryLength() == 0 || historyNavigationIndex <= 0 {
-					bell()
-					continue
-				}
-				historyNavigationIndex++
-				recalledCommand, ok := executor.GetHistoryEntry(historyNavigationIndex)
-				if ok {
-					currentVisualLength := len(line)
-					fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len("$ ")+currentVisualLength))
-					prompt()
-					os.Stdout.WriteString(recalledCommand)
-					line = recalledCommand
-				} else {
-					if historyNavigationIndex > executor.GetHistoryLength() {
-						historyNavigationIndex--
-					}
 					bell()
 				}
 			}
@@ -154,4 +142,18 @@ func read() (string, ReadResult) {
 			historyNavigationIndex = executor.GetHistoryLength()
 		}
 	}
+}
+
+func recallCommandFromHistory(line *string, targetHistoryIndex int) bool {
+	recalledCommand, ok := executor.GetHistoryEntry(targetHistoryIndex)
+	if ok {
+		currentVisualLength := len(*line)
+		fmt.Fprintf(os.Stdout, "\r%s\r", strings.Repeat(" ", len("$ ")+currentVisualLength))
+		prompt()
+		os.Stdout.WriteString(recalledCommand)
+		*line = recalledCommand
+		return true
+	}
+	bell()
+	return false
 }
