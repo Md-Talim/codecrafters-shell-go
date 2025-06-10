@@ -70,6 +70,17 @@ func appendHistoryFromFile(historyFile string) {
 	}
 }
 
+func writeHistoryToFile(historyFile string) {
+	historyBytes := []byte{}
+	for _, command := range shellHistory {
+		historyBytes = append(historyBytes, []byte(command+"\n")...)
+	}
+	if err := os.WriteFile(historyFile, historyBytes, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "error writing history file: %v", err)
+		return
+	}
+}
+
 func findPath(command string) (string, bool) {
 	PATH := os.Getenv("PATH")
 	directories := strings.SplitSeq(PATH, string(os.PathListSeparator))
