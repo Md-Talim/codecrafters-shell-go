@@ -6,7 +6,6 @@ import (
 
 	"github.com/md-talim/codecrafters-shell-go/internal/parser"
 	"github.com/md-talim/codecrafters-shell-go/internal/shellio"
-	"github.com/md-talim/codecrafters-shell-go/internal/utils"
 )
 
 func Execute(input string) {
@@ -39,7 +38,7 @@ func executeSingleCommand(command []string, finalShellIO shellio.IO) {
 
 	if builtinCommandExecutor, isBuiltinCommand := builtinCommands[commandName]; isBuiltinCommand {
 		builtinCommandExecutor(commandArgs, finalShellIO)
-	} else if _, ok := utils.FindPath(commandName); ok {
+	} else if _, ok := findPath(commandName); ok {
 		executeExternalCommand(commandName, commandArgs, finalShellIO)
 	} else {
 		fmt.Fprintf(finalShellIO.OutputFile(), "%s: command not found\n", commandName)

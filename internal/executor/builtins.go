@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/md-talim/codecrafters-shell-go/internal/shellio"
-	"github.com/md-talim/codecrafters-shell-go/internal/utils"
 )
 
 type BuiltinCommandExecutor func([]string, shellio.IO)
@@ -62,7 +61,7 @@ func typeCommand(args []string, io shellio.IO) {
 		case "exit", "echo", "type", "pwd", "cd", "history":
 			fmt.Fprintf(io.OutputFile(), "%s is a shell builtin\n", arg)
 		default:
-			if path, ok := utils.FindPath(arg); ok {
+			if path, ok := findPath(arg); ok {
 				fmt.Fprintf(io.OutputFile(), "%s is %s\n", arg, path)
 			} else {
 				fmt.Fprintf(io.OutputFile(), "%s: not found\n", arg)
