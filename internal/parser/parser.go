@@ -73,7 +73,7 @@ func (p *Parser) Parse() ([][]string, shellio.RedirectionConfig) {
 				fmt.Fprintln(os.Stderr, "Error: Missing file name for redirection")
 				return nil, shellio.RedirectionConfig{}
 			}
-			redirection = getRedirectionConfig(token, *fileName)
+			redirection = shellio.NewRedirectionConfig(token, *fileName)
 			break
 		} else {
 			currentCommandArgs = append(currentCommandArgs, token)

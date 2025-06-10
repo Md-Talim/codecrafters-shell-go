@@ -3,6 +3,7 @@ package shellio
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // RedirectionConfig holds the configuration for file redirection.
@@ -10,6 +11,22 @@ type RedirectionConfig struct {
 	File            string
 	Descriptor      int
 	IsAppendEnabled bool
+}
+
+func NewRedirectionConfig(operator string, file string) RedirectionConfig {
+	descriptor := 1
+	append := false
+	if strings.HasPrefix(operator, "2") {
+		descriptor = 2
+	}
+	if strings.Contains(operator, ">>") {
+		append = true
+	}
+	return RedirectionConfig{
+		File:            file,
+		Descriptor:      descriptor,
+		IsAppendEnabled: append,
+	}
 }
 
 type IO interface {
