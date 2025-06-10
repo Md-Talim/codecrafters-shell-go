@@ -97,14 +97,20 @@ func cdCommand(args []string, io shellio.IO) {
 }
 
 func historyCommand(args []string, io shellio.IO) {
-	limit, err := getHistoryLimit(args)
-	if err != nil {
-		fmt.Fprintln(io.ErrorFile(), err)
+	if len(args) == 0 {
+		printHistory(len(shellHistory), io)
 		return
 	}
 
-	startIndex := len(shellHistory) - limit
-	for i := startIndex; i < len(shellHistory); i++ {
-		fmt.Fprintf(io.OutputFile(), "    %d  %s\n", i+1, shellHistory[i])
+	action := args[0]
+	if action == "-r" {
+		appendHistoryFromFile(args[1])
+	} else {
+		limit, err := getHistoryLimit(&args)
+		if err != nil {
+			fmt.Fprintln(io.ErrorFile(), err)
+			return
+		}
+		printHistory(limit, io)
 	}
 }
