@@ -16,6 +16,7 @@ var builtinCommands BuiltinCommandsMap
 var shellHistory []string
 
 func init() {
+	loadHistoryFromHISTFILE()
 	builtinCommands = BuiltinCommandsMap{
 		"cd":      cdCommand,
 		"echo":    echoCommand,

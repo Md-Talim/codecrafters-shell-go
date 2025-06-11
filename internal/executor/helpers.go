@@ -29,6 +29,12 @@ func initializePipes(numPipes int) ([][2]*os.File, error) {
 	return pipes, nil
 }
 
+func loadHistoryFromHISTFILE() {
+	if historyFileName, isPresent := os.LookupEnv("HISTFILE"); isPresent {
+		appendHistoryFromFile(historyFileName)
+	}
+}
+
 func addCommandToHistory(command string) {
 	shellHistory = append(shellHistory, command)
 }
