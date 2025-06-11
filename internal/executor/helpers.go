@@ -81,6 +81,42 @@ func writeHistoryToFile(historyFile string) {
 	}
 }
 
+func appendHistoryToFile(historyFile string) {
+	historyString := ""
+	lastAppendIndex := getLastAppendIndex()
+	for i := lastAppendIndex + 1; i < len(shellHistory); i++ {
+		command := shellHistory[i]
+		historyString += command + "\n"
+	}
+
+	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	file, err := os.OpenFile(historyFile, flags, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error opening file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(historyString); err != nil {
+		fmt.Fprintf(os.Stderr, "error writing history file: %v", err)
+	}
+}
+
+func getLastAppendIndex() int {
+	if len(shellHistory) <= 2 {
+		return -1
+	}
+
+	historyLength := GetHistoryLength()
+	lastAppendCommand := shellHistory[historyLength-1]
+	for i := historyLength - 2; i >= 0; i-- {
+		if lastAppendCommand == shellHistory[i] {
+			return i
+		}
+	}
+	return -1
+}
+
 func findPath(command string) (string, bool) {
 	PATH := os.Getenv("PATH")
 	directories := strings.SplitSeq(PATH, string(os.PathListSeparator))

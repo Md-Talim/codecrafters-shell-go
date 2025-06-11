@@ -106,6 +106,8 @@ func historyCommand(args []string, io shellio.IO) {
 		appendHistoryFromFile(args[1])
 	} else if action == "-w" {
 		writeHistoryToFile(args[1])
+	} else if action == "-a" {
+		appendHistoryToFile(args[1])
 	} else {
 		limit, err := getHistoryLimit(&args)
 		if err != nil {
