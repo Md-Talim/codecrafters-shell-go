@@ -35,6 +35,12 @@ func loadHistoryFromHISTFILE() {
 	}
 }
 
+func writeHistoryToHISTFILE() {
+	if historyFileName, isPresent := os.LookupEnv("HISTFILE"); isPresent {
+		writeHistoryToFile(historyFileName)
+	}
+}
+
 func addCommandToHistory(command string) {
 	shellHistory = append(shellHistory, command)
 }

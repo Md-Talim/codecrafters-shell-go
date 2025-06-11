@@ -43,6 +43,7 @@ func GetHistoryEntry(index int) (string, bool) {
 }
 
 func exitCommand(_ []string, _ shellio.IO) {
+	writeHistoryToHISTFILE()
 	os.Exit(0)
 }
 
