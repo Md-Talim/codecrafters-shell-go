@@ -13,7 +13,7 @@ type BuiltinCommandExecutor func([]string, shellio.IO)
 type BuiltinCommandsMap map[string]BuiltinCommandExecutor
 
 var builtinCommands BuiltinCommandsMap
-var shellHistory []string
+var history CommandHistory
 
 func init() {
 	loadHistoryFromHISTFILE()
@@ -32,12 +32,12 @@ func BuiltinCommands() BuiltinCommandsMap {
 }
 
 func GetHistoryLength() int {
-	return len(shellHistory)
+	return history.length()
 }
 
 func GetHistoryEntry(index int) (string, bool) {
-	if index >= 0 && index < len(shellHistory) {
-		return shellHistory[index], true
+	if index >= 0 && index < history.length() {
+		return history.at(index), true
 	}
 	return "", false
 }
@@ -99,23 +99,25 @@ func cdCommand(args []string, io shellio.IO) {
 
 func historyCommand(args []string, io shellio.IO) {
 	if len(args) == 0 {
-		printHistory(len(shellHistory), io)
+		history.printAll(io)
 		return
 	}
 
+	// The first arg can be the action like "-r", "-w", or "-a"
+	// It can also be the limit for history
 	action := args[0]
 	if action == "-r" {
-		appendHistoryFromFile(args[1])
+		history.appendFromFile(args[1])
 	} else if action == "-w" {
-		writeHistoryToFile(args[1])
+		history.saveToFile(args[1])
 	} else if action == "-a" {
-		appendHistoryToFile(args[1])
+		history.appendToFile(args[1])
 	} else {
-		limit, err := getHistoryLimit(&args)
+		limit, err := parseHistoryLimit(action)
 		if err != nil {
 			fmt.Fprintln(io.ErrorFile(), err)
 			return
 		}
-		printHistory(limit, io)
+		history.printLast(limit, io)
 	}
 }
